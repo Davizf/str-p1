@@ -48,7 +48,7 @@ time_t mix_start_t, mix_end_t;
 #define MODE_UNLOADING 2
 int mode = MODE_NORMAL;
 int distance = 0;
-#define MIN_DISTANCE 19000
+#define MIN_DISTANCE 11000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
 
