@@ -8,6 +8,8 @@
 // Global Variables
 // --------------------------------------
 float speed = 55.0;
+int minimumSecureSpeed = 40;
+int maximumSecureSpeed = 70;
 int gasState = 0; // 0 = off && 1 = on
 int brakeState = 0; // 0 = off && 1 = on
 int mixState = 0; // 0 = off && 1 = on
@@ -80,11 +82,11 @@ int represent_speed(){
   if(slope == 1)  {  accel -= 0.25; }
   if(slope == -1)  {  accel += 0.25; }
   speed += (accel * 0.1);
-  if(speed < 40 || speed > 70){
+  if(speed < minimumSecureSpeed || speed > maximumSecureSpeed){
     return -1;
   }
-  delay(10);
-  analogWrite(10, ((speed-40)/30)*255);
+
+  analogWrite(10, map(speed, 40, 70, 0, 255));
 }
 
 // --------------------------------------

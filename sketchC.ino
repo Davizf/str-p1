@@ -8,10 +8,13 @@
 // Global Variables
 // --------------------------------------
 float speed = 55.0;
+int minimumSecureSpeed = 40;
+int maximumSecureSpeed = 70;
 int gasState = 0; // 0 = off && 1 = on
 int brakeState = 0; // 0 = off && 1 = on
 int mixState = 0; // 0 = off && 1 = on
 int slope; // 0 = FLAT && 1 = UO && -1 = DOWN
+unsigned long previousMillis = 0;
 int lamState = 0; // 0 = off && 1 = on
 int lit = 0.0;
 long selectorDistance = 0; // 10000 - 90000
@@ -19,6 +22,12 @@ long distanceDeposit;
 float actualDistanceToDeposit = 0.0;
 float diffDistance;
 int unloadState = 0; // 0 = off && 1 = frenando $$ 2 = parado
+
+// --------------------------------------
+// Constant Variables
+// --------------------------------------
+const long interval = 200; 
+
 // --------------------------------------
 // Function: check_accel
 // --------------------------------------
@@ -79,11 +88,11 @@ int represent_speed(){
   if(slope == 1)  {  accel -= 0.25; }
   if(slope == -1)  {  accel += 0.25; }
   speed += (accel * 0.1);
-  if(speed < 40 || speed > 70){
+  if(speed < minimumSecureSpeed || speed > maximumSecureSpeed){
     return -1;
   }
-  delay(10);
-  analogWrite(10, ((speed-40)/30)*255);
+
+  analogWrite(10, map(speed, 40, 70, 0, 255));
 }
 
 // --------------------------------------
@@ -103,7 +112,7 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 250, 680, 0, 100);
+  lit = map(lit, 255, 680, 0, 99);
   return 0;
 }
 
@@ -111,7 +120,9 @@ int check_lit(){
 // Function: check_deposit_distance
 // --------------------------------------
 int check_deposit_distance(){
-  selectorDistance = map(analogRead(A1), 0, 1023, 10000, 90000);
+  //Serial.println(analogRead(A1));
+  selectorDistance = map(analogRead(A1), 500, 1023, 10000, 90000);
+  //Serial.println(selectorDistance);
   return 0;
 }
 
@@ -119,7 +130,7 @@ int check_deposit_distance(){
 // Function: display_distance_segment
 // --------------------------------------
 int display_distance_segment(){
-  PORTD = selectorDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída 
+  PORTD = selectorDistance/10000 << 2;  
   return 0;
 }
 
@@ -145,11 +156,12 @@ int display_real_distance_deposit(){
     if(brakeState == 1)  {  accel -= 0.5; }
     if(slope == 1)  {  accel -= 0.25; }
     if(slope == -1)  {  accel += 0.25; }
+    
     actualDistanceToDeposit += (speed * t) + (0.5 * accel * pow(t, 2));
     diffDistance = distanceDeposit - actualDistanceToDeposit;
     
-    Serial.println(diffDistance);
-    PORTD = (long)diffDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída 
+    //Serial.println(diffDistance);
+    PORTD = (long)diffDistance/10000 << 2;  
     if(diffDistance <= 0){
        if(speed < 10){
          unloadState = 2;  // to mode stop
@@ -336,7 +348,7 @@ void setup() {
     pinMode(8, INPUT);   // slope down
     pinMode(7, OUTPUT);   // lam
     pinMode(A0, INPUT);   // lit
-    DDRD = B00111100; // Configura os pinos digitais 2, 3, 4 e 5 como saída digital
+    DDRD = B00111100; // Configurar los pines digitais 2, 3, 4 e 5 como salidas digitales
     
 }
 
@@ -344,15 +356,15 @@ void setup() {
 // Function: loop
 // --------------------------------------
 void loop() {
-    
-        comm_server();
-        check_accel();
-        check_brake();
-        check_mix();
-        check_slope();
-        represent_speed();
-        check_lam();
-        check_lit();
+    unsigned long currentMillis = millis();  
+    comm_server();
+    check_accel();
+    check_brake();
+    check_mix();
+    check_slope();
+    represent_speed();
+    check_lam();
+    check_lit();
     if(unloadState == 0){ // selector mode
         check_deposit_distance();
         display_distance_segment();
@@ -363,5 +375,10 @@ void loop() {
         check_speed_zero();
         read_end_stop();
     }   
+    
+    if (currentMillis - previousMillis < interval) {
+        delay(interval - (currentMillis - previousMillis));
+    }
+    previousMillis = currentMillis;
     
 }
