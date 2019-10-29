@@ -326,9 +326,9 @@ void *controller(void *arg)
 			task_speed();// A
 			task_slope();// B
 			task_gas();// C
+			task_brake();// D
 			break;
 		case 1:
-			task_brake();// D
 			task_mix();// E
 			break;
 		case 2:
@@ -343,9 +343,9 @@ void *controller(void *arg)
 			task_speed();// A
 			task_slope();// B
 			task_gas();// C
+			task_brake();// D
 			break;
 		case 5:
-			task_brake();// D
 			task_mix();// E
 			break;
 		}
