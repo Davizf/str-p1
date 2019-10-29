@@ -14,7 +14,8 @@
 /**********************************************************
  *  Constants
  **********************************************************/
-#define secureSpeed 55
+#define SIMULATOR 1// 1 use simulator, 0 use serial
+#define SECURE_SPEED 55
 
 #define NS_PER_S  1000000000
 #define PERIOD_NS  500000000
@@ -36,6 +37,7 @@ float speed = 0.0;
 int gasState = 0;
 int brakeState = 0;
 int mixState = 0;
+int slope = 0;
 time_t mix_start_t, mix_end_t;
 
 int SECONDARY_CYCLES=6;
@@ -110,12 +112,12 @@ int task_speed()
 	// request speed
 	strcpy(request,"SPD: REQ\n");
 
-	//uncomment to use the simulator
-	simulator(request, answer);
-
-	// uncoment to access serial module
-	//writeSerialMod_9(request);
-	//readSerialMod_9(answer);
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
 
 	// display speed
 	if (1 == sscanf (answer,"SPD:%f\n",&speed)) {
@@ -143,17 +145,24 @@ int task_slope()
 	// request slope
 	strcpy(request,"SLP: REQ\n");
 
-	//uncomment to use the simulator
-	simulator(request, answer);
-
-	// uncoment to access serial module
-	//writeSerialMod_9(request);
-	//readSerialMod_9(answer);
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
 
 	// display slope
-	if (0 == strcmp(answer,"SLP:DOWN\n")) displaySlope(-1);
-	if (0 == strcmp(answer,"SLP:FLAT\n")) displaySlope(0);
-	if (0 == strcmp(answer,"SLP:  UP\n")) displaySlope(1);
+	if (0 == strcmp(answer,"SLP:DOWN\n")) {
+		slope = -1;
+		displaySlope(-1);
+	} else if (0 == strcmp(answer,"SLP:FLAT\n")) {
+		slope = 0;
+		displaySlope(0);
+	} else if (0 == strcmp(answer,"SLP:  UP\n")) {
+		slope = 1;
+		displaySlope(1);
+	}
 
 	return 0;
 }
@@ -176,10 +185,10 @@ int task_gas()
 	memset(answer,'\0',10);
 
 	// accelerate if the speed is lower than 55m/s
-	if(speed > secureSpeed && gasState == 1){
+	if(speed > SECURE_SPEED && gasState == 1){
 		strcpy(request,"GAS: CLR\n");
 		gasState = 0;
-	}else if(speed < secureSpeed && gasState == 0){
+	}else if(speed < SECURE_SPEED && gasState == 0){
 		strcpy(request,"GAS: SET\n");
 		gasState = 1;
 	}else{
@@ -187,12 +196,12 @@ int task_gas()
 		return 0;
 	}
 
-	//uncomment to use the simulator
-	simulator(request, answer);
-
-	// uncoment to access serial module
-	//writeSerialMod_9(request);
-	//readSerialMod_9(answer);
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
 
 	// display speed
 	if (0 == strcmp(answer,"GAS:  OK\n")) {
@@ -221,10 +230,10 @@ int task_brake()
 	memset(answer,'\0',10);
 
 	// decelerate if the speed is more than 55m/s
-	if(speed < secureSpeed && brakeState == 1){
+	if(speed < SECURE_SPEED && brakeState == 1){
 		strcpy(request,"BRK: CLR\n");
 		brakeState = 0;
-	}else if(speed > secureSpeed && brakeState == 0){
+	}else if(speed > SECURE_SPEED && brakeState == 0){
 		strcpy(request,"BRK: SET\n");
 		brakeState = 1;
 	}else{
@@ -232,12 +241,12 @@ int task_brake()
 		return 0;
 	}
 
-	//uncomment to use the simulator
-	simulator(request, answer);
-
-	// uncoment to access serial module
-	//writeSerialMod_9(request);
-	//readSerialMod_9(answer);
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
 
 	// display speed
 	if (0 == strcmp(answer,"BRK:  OK\n")) {
@@ -281,15 +290,14 @@ int task_mix()
 		strcpy(request,"MIX: CLR\n");
 	}
 
-	//uncomment to use the simulator
-	simulator(request, answer);
-
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
 	//restart the counting
 	time(&mix_start_t);
-
-	// uncoment to access serial module
-	//writeSerialMod_9(request);
-	//readSerialMod_9(answer);
 
 	// display speed
 	if (0 == strcmp (answer,"MIX:  OK\n")) {
@@ -361,7 +369,7 @@ int main ()
 	pthread_t thread_ctrl;
 	sigset_t alarm_sig;
 	int i;
-
+	
 	/* Block all real time signals so they can be used for the timers.
 	   Note: this has to be done in main() before any threads are created
 	   so they all inherit the same mask. Doing it later is subject to
@@ -372,11 +380,12 @@ int main ()
 	}
 	sigprocmask (SIG_BLOCK, &alarm_sig, NULL);
 
-	// init display
-	displayInit(SIGRTMAX);
-
-	// initSerialMod_9600 uncomment to work with serial module
-	//initSerialMod_WIN_9600 ();
+	if (SIMULATOR) {
+		// init display
+		displayInit(SIGRTMAX);
+	} else {
+		initSerialMod_WIN_9600 ();
+	}
 
 	// init counting time for mix
 	time(&mix_start_t);
