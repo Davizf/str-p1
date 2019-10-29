@@ -48,7 +48,7 @@ time_t mix_start_t, mix_end_t;
 #define MODE_UNLOADING 2
 int mode = MODE_NORMAL;
 int distance = 0;
-#define MIN_DISTANCE 11000
+#define MIN_DISTANCE 19000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
 
@@ -197,10 +197,10 @@ int task_gas()
 	memset(answer,'\0',10);
 
 	// accelerate if the speed is lower than 55m/s
-	if(speed > SECURE_SPEED && gasState == 1){
+	if(speed >= SECURE_SPEED && gasState == 1){
 		strcpy(request,"GAS: CLR\n");
 		gasState = 0;
-	}else if(speed <= SECURE_SPEED && gasState == 0){
+	}else if(speed < SECURE_SPEED && gasState == 0){
 		strcpy(request,"GAS: SET\n");
 		gasState = 1;
 	}else{
