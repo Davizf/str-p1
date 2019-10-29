@@ -15,8 +15,19 @@
  *  Constants
  **********************************************************/
 #define secureSpeed 55
-#define secureSpeedMinimum 40
-#define secureSpeedMaximum 70
+
+#define NS_PER_S  1000000000
+#define PERIOD_NS  500000000
+#define TIME_TO_RELOAD   30
+#define INIT_HIGH   0
+
+// DISPLAY DELAY
+#define TIME_DISPLAY_SEC 0
+#define TIME_DISPLAY_NSEC 500000000
+
+// FORCING ERRORS
+#define TIME_BW_ERRORS   30
+#define ERROR_DELAY_TIME 1
 
 /**********************************************************
  *  Global Variables
@@ -30,19 +41,7 @@ time_t mix_start_t, mix_end_t;
 int SECONDARY_CYCLES=6;
 struct timespec SC_DURATION={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
 
-#define NS_PER_S  1000000000
-#define PERIOD_NS  500000000
-#define TIME_TO_RELOAD   30
-#define INIT_HIGH   0
 
-// DISPLAY DELAY
-#define TIME_DISPLAY_SEC 0
-#define TIME_DISPLAY_NSEC 500000000
-
-
-// FORCING ERRORS
-#define TIME_BW_ERRORS   30
-#define ERROR_DELAY_TIME 1
 //---------------------------------------------------------------------------
 //                           FUNCIONES AUXILIARES
 //---------------------------------------------------------------------------
@@ -159,37 +158,6 @@ int task_slope()
 	return 0;
 }
 
-/**********************************************************
- *  Auxiliar function: get_actual_speed
- *********************************************************/
-int get_actual_speed()
-{
-	char request[10];
-	char answer[10];
-
-	//--------------------------------
-	//  return the actual speed
-	//--------------------------------
-
-	//clear request and answer
-	memset(request,'\0',10);
-	memset(answer,'\0',10);
-
-	// request speed
-	strcpy(request,"SPD: REQ\n");
-
-	//uncomment to use the simulator
-	simulator(request, answer);
-
-	// display speed
-	if (1 == sscanf (answer,"SPD:%f\n",&speed)) {
-		return speed;
-	}
-
-	// error case
-	return -1;
-}
-
 
 /**********************************************************
  *  Function: task_gas
@@ -207,15 +175,16 @@ int task_gas()
 	memset(request,'\0',10);
 	memset(answer,'\0',10);
 
-	// accelerate if the speed is lower than 40m/s
-	if(get_actual_speed() > secureSpeedMinimum && gasState == 0){
-		return 0;
-	}else if(get_actual_speed() > secureSpeedMinimum && gasState == 1){
+	// accelerate if the speed is lower than 55m/s
+	if(speed > secureSpeed && gasState == 1){
 		strcpy(request,"GAS: CLR\n");
 		gasState = 0;
-	}else if(get_actual_speed() < secureSpeedMinimum && gasState == 0){
+	}else if(speed < secureSpeed && gasState == 0){
 		strcpy(request,"GAS: SET\n");
 		gasState = 1;
+	}else{
+		// other cases do nothing
+		return 0;
 	}
 
 	//uncomment to use the simulator
@@ -251,15 +220,16 @@ int task_brake()
 	memset(request,'\0',10);
 	memset(answer,'\0',10);
 
-	// decelerate if the speed is more than 70m/s
-	if(get_actual_speed() < secureSpeedMaximum && brakeState == 0){
-		return 0;
-	}else if(get_actual_speed() < secureSpeedMaximum && brakeState == 1){
+	// decelerate if the speed is more than 55m/s
+	if(speed < secureSpeed && brakeState == 1){
 		strcpy(request,"BRK: CLR\n");
 		brakeState = 0;
-	}else if(get_actual_speed() > secureSpeedMaximum && brakeState == 0){
+	}else if(speed > secureSpeed && brakeState == 0){
 		strcpy(request,"BRK: SET\n");
 		brakeState = 1;
+	}else{
+		// other cases do nothing
+		return 0;
 	}
 
 	//uncomment to use the simulator
