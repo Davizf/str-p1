@@ -48,7 +48,7 @@ time_t mix_start_t, mix_end_t;
 #define MODE_UNLOADING 2
 int mode = MODE_NORMAL;
 int distance = 0;
-#define MIN_DISTANCE 11000
+#define MIN_DISTANCE 19000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
 
@@ -200,7 +200,7 @@ int task_gas()
 	if(speed > SECURE_SPEED && gasState == 1){
 		strcpy(request,"GAS: CLR\n");
 		gasState = 0;
-	}else if(speed < SECURE_SPEED && gasState == 0){
+	}else if(speed <= SECURE_SPEED && gasState == 0){
 		strcpy(request,"GAS: SET\n");
 		gasState = 1;
 	}else{
@@ -242,7 +242,7 @@ int task_brake()
 	memset(answer,'\0',10);
 
 	// decelerate if the speed is more than 55m/s
-	if(speed < SECURE_SPEED && brakeState == 1){
+	if(speed <= SECURE_SPEED && brakeState == 1){
 		strcpy(request,"BRK: CLR\n");
 		brakeState = 0;
 	}else if(speed > SECURE_SPEED && brakeState == 0){
@@ -457,7 +457,6 @@ int task_on_lights()
 
 	// Turn ON
 	strcpy(request,"LAM: SET\n");
-	lights = 1;
 
 	if (SIMULATOR) {
 		simulator(request, answer);
@@ -468,6 +467,7 @@ int task_on_lights()
 
 	// display lights
 	if (0 == strcmp(answer,"LAM:  OK\n")) {
+		lights = 1;
 		displayLamps(lights);
 		return 0;
 	}
@@ -480,7 +480,7 @@ int task_on_lights()
  *  Function: task_finish_unload
  *********************************************************/
 // return 0 if correct, 1 if the mode has changed
-int task_finish_unload()// TODO
+int task_finish_unload()
 {
 	char request[10];
 	char answer[10];
@@ -493,8 +493,8 @@ int task_finish_unload()// TODO
 	memset(request,'\0',10);
 	memset(answer,'\0',10);
 
-	// request distance
-	strcpy(request,"DS:  REQ\n");
+	// request state
+	strcpy(request,"STP: REQ\n");
 
 	if (SIMULATOR) {
 		simulator(request, answer);
@@ -503,13 +503,15 @@ int task_finish_unload()// TODO
 		readSerialMod_9(answer);
 	}
 
-	// display distance
-	if (1 == sscanf (answer,"DS:%d\n",&distance)) {
-		displayDistance(distance);
+	if (0 == strcmp(answer,"STP:STOP\n")) {// keep on MODE_UNLOADING 
+		return 0;
+	} else if (0 == strcmp(answer,"STP:  GO\n")) {// start MODE_NORMAL
+		mode = MODE_NORMAL;
+		displayStop(0);
+		return 1;
 	}
-	displayStop(0);
 	
-	return 0;
+	return -1;
 }
 
 /**********************************************************
@@ -610,38 +612,42 @@ void *controller(void *arg)
 				task_on_lights();// G
 				break;
 			}
-		} else if (mode == MODE_UNLOADING) {// TODO volver a NORMAL
+		} else if (mode == MODE_UNLOADING) {
 			switch (actual_sc) {
 			case 0:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				break;
 			case 1:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				task_mix();// B
 				break;
 			case 2:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				break;
 			case 3:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				break;
 			case 4:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				task_mix();// B
 				break;
 			case 5:
-				task_finish_unload();// A
+				change_mode = task_finish_unload();// A
 				task_on_lights();// C
 				break;
 			}
 		}
 		
-		actual_sc=(actual_sc+1)%SECONDARY_CYCLES;
+		if (change_mode == 1) {
+			actual_sc = 0;
+		} else {
+			actual_sc=(actual_sc+1)%SECONDARY_CYCLES;
+		}
 
 		clock_gettime(CLOCK_REALTIME, &finish);
 
