@@ -323,8 +323,8 @@ void *controller(void *arg)
 	while(1) {
 		switch (actual_sc) {
 		case 0:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			task_gas();// C
 			task_brake();// D
 			break;
@@ -332,16 +332,16 @@ void *controller(void *arg)
 			task_mix();// E
 			break;
 		case 2:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			break;
 		case 3:
 			task_gas();// C
 			task_brake();// D
 			break;
 		case 4:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			task_gas();// C
 			task_brake();// D
 			break;

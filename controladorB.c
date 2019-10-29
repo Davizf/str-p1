@@ -400,8 +400,8 @@ void *controller(void *arg)
 	while(1) {
 		switch (actual_sc) {
 		case 0:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			task_lights();// F
 			task_brightness();// G
 			task_mix();// E
@@ -413,8 +413,8 @@ void *controller(void *arg)
 			task_brightness();// G
 			break;
 		case 2:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			task_lights();// F
 			task_brightness();// G
 			break;
@@ -426,8 +426,8 @@ void *controller(void *arg)
 			task_mix();// E
 			break;
 		case 4:
-			task_speed();// A
-			task_slope();// B
+			task_slope();// A
+			task_speed();// B
 			task_lights();// F
 			task_brightness();// G
 			break;
