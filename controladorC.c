@@ -41,14 +41,14 @@ int mixState = 0;
 int slope = 0;
 int brightness = 0;
 int lights = 0;
-time_t mix_start_t, mix_end_t;
+struct timespec mix_start, mix_end, mix_aux;
 
 #define MODE_NORMAL 0
 #define MODE_BRAKE 1
 #define MODE_UNLOADING 2
 int mode = MODE_NORMAL;
 int distance = 0;
-#define MIN_DISTANCE 19000
+#define MIN_DISTANCE 11000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
 
@@ -283,9 +283,10 @@ int task_mix()
 	//  checking time count and decide to activate mix
 	//-------------------------------------------------
 
-	time(&mix_end_t);
+	clock_gettime(CLOCK_REALTIME, &mix_end);
 
-	if(difftime(mix_end_t, mix_start_t) < 30){
+	diffTime(mix_end, mix_start, &mix_aux);
+	if(mix_aux.tv_sec < 30){
 		return 0;
 	}
 
@@ -309,7 +310,7 @@ int task_mix()
 		readSerialMod_9(answer);
 	}
 	//restart the counting
-	time(&mix_start_t);
+	clock_gettime(CLOCK_REALTIME, &mix_start);
 
 	// display speed
 	if (0 == strcmp (answer,"MIX:  OK\n")) {
@@ -523,6 +524,9 @@ void *controller(void *arg)
 	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
 	clock_gettime(CLOCK_REALTIME, &start);
 
+	// init counting time for mix
+	clock_gettime(CLOCK_REALTIME, &mix_start);
+
 	int change_mode = 0;
 	// Endless loop
 	while(1) {
@@ -678,15 +682,11 @@ int main ()
 	}
 	sigprocmask (SIG_BLOCK, &alarm_sig, NULL);
 
-	if (SIMULATOR) {
-		// init display
-		displayInit(SIGRTMAX);
-	} else {
+	// init display
+	displayInit(SIGRTMAX);
+	if (SIMULATOR == 0) {
 		initSerialMod_WIN_9600 ();
 	}
-
-	// init counting time for mix
-	time(&mix_start_t);
 
 	/* Create first thread */
 	pthread_create (&thread_ctrl, NULL, controller, NULL);
