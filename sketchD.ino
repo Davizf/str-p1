@@ -27,7 +27,7 @@ int emergence = 0;
 // --------------------------------------
 // Constant Variables
 // --------------------------------------
-const long interval = 200; 
+const long interval = 200;
 
 
 // --------------------------------------
@@ -77,7 +77,7 @@ int check_slope(){
   } else {
     slope = 0;
   }
-  return 0;  
+  return 0;
 }
 
 // --------------------------------------
@@ -130,7 +130,7 @@ int check_deposit_distance(){
 // Function: display_distance_segment
 // --------------------------------------
 int display_distance_segment(){
-  PORTD = selectorDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída 
+  PORTD = selectorDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída
   return 0;
 }
 
@@ -158,9 +158,9 @@ int display_real_distance_deposit(){
     if(slope == -1)  {  accel += 0.25; }
     actualDistanceToDeposit += (speed * t) + (0.5 * accel * pow(t, 2));
     diffDistance = distanceDeposit - actualDistanceToDeposit;
-    
+
     Serial.println(diffDistance);
-    PORTD = (long)diffDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída 
+    PORTD = (long)diffDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída
     if(diffDistance <= 0){
        if(speed < 10){
          unloadState = 2;  // to mode stop
@@ -168,19 +168,17 @@ int display_real_distance_deposit(){
          unloadState = 0;  // to mode selector
      }
    }
-  
+
   return 0;
 }
 
 
 
 // --------------------------------------
-// Function: check_speed_zero()
+// Function: set_speed_zero()
 // --------------------------------------
-int check_speed_zero(){
-  if(speed != 0){
-    speed = 0;
-  }
+int set_speed_zero(){
+  speed = 0;
   return 0;
 }
 
@@ -218,16 +216,16 @@ int comm_server()
     char answer[10];
     int speed_int;
     int speed_dec;
-    
+
     // while there is enough data for a request
     if (Serial.available() >= 9) {
         // read the request
-        i=0; 
+        i=0;
         while ( (i<9) && (Serial.available() >= (9-i)) ) {
             // read one character
             request[i]=Serial.read();
-           
-            // if the new line is positioned wrong 
+
+            // if the new line is positioned wrong
             if ( (i!=8) && (request[i]=='\n') ) {
                 // Send error and start all over again
                 sprintf(answer,"MSG: ERR\n");
@@ -240,7 +238,7 @@ int comm_server()
             }
         }
         request[9]='\0';
-        
+
         // cast the request
         if (0 == strcmp("SPD: REQ\n",request)) {
             // send the answer for speed request
@@ -287,20 +285,20 @@ int comm_server()
                 // error
                 strcpy (answer,"MSG: ERR\n");
               }
-          
+
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp(request,"SLP: REQ\n")) {
             // devolver pendiente
             check_slope();
             switch(slope){
               case 0:
-                sprintf (answer,"SLP:FLAT\n");  
+                sprintf (answer,"SLP:FLAT\n");
                 break;
               case -1:
-                sprintf (answer,"SLP:DOWN\n");  
+                sprintf (answer,"SLP:DOWN\n");
                 break;
               case 1:
-                sprintf (answer,"SLP:  UP\n"); 
+                sprintf (answer,"SLP:  UP\n");
                 break;
             }
             Serial.print(slope);
@@ -319,12 +317,12 @@ int comm_server()
                 // error
                 strcpy (answer,"MSG: ERR\n");
               }
-          
+
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp("LIT: REQ\n",request)) {
             sprintf(answer,"SPD: %d\n",lit);
             Serial.print(answer);
-            
+
         } else if (0 == strcmp(request,"DS:  REQ\n")) {
             // devolver distancia
             sprintf(answer,"DS:%ld\n", (long) diffDistance);
@@ -347,13 +345,13 @@ int comm_server()
         }
     }
     return 0;
-}    
+}
 
 // --------------------------------------
 // Function: setup
 // --------------------------------------
-void setup() {  
-    Serial.begin(9600);  
+void setup() {
+    Serial.begin(9600);
     pinMode(13, OUTPUT); // gas
     pinMode(12, OUTPUT); // brake
     pinMode(11, OUTPUT); // mix
@@ -363,14 +361,14 @@ void setup() {
     pinMode(7, OUTPUT);   // lam
     pinMode(A0, INPUT);   // lit
     DDRD = B00111100; // Configura os pinos digitais 2, 3, 4 e 5 como saída digital
-    
+
 }
 
 // --------------------------------------
 // Function: loop
 // --------------------------------------
 void loop() {
-  unsigned long currentMillis = millis();  
+  unsigned long currentMillis = millis();
   comm_server();
   if(!emergence){
     check_accel();
@@ -388,14 +386,14 @@ void loop() {
   }else if(unloadState == 1){  // Modo de acercamiento al deposito
     display_real_distance_deposit();
   }else{  // Modo de parada
-    check_speed_zero();
+    set_speed_zero();
     read_end_stop();
   }
-  check_emergence();   
-  
+  check_emergence();
+
   if (currentMillis - previousMillis < interval) {
      delay(interval - (currentMillis - previousMillis));
   }
   previousMillis = currentMillis;
-    
+
 }
