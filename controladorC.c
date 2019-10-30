@@ -196,16 +196,31 @@ int task_gas()
 	memset(request,'\0',10);
 	memset(answer,'\0',10);
 
-	// accelerate if the speed is lower than 55m/s
-	if(speed >= SECURE_SPEED && gasState == 1){
-		strcpy(request,"GAS: CLR\n");
-		gasState = 0;
-	}else if(speed < SECURE_SPEED && gasState == 0){
-		strcpy(request,"GAS: SET\n");
-		gasState = 1;
-	}else{
-		// other cases do nothing
-		return 0;
+	if (mode == MODE_NORMAL) {
+		// accelerate if the speed is lower than 55m/s
+		if(speed >= SECURE_SPEED && gasState == 1){
+			strcpy(request,"GAS: CLR\n");
+			gasState = 0;
+		}else if(speed < SECURE_SPEED && gasState == 0){
+			strcpy(request,"GAS: SET\n");
+			gasState = 1;
+		}else{
+			// other cases do nothing
+			return 0;
+		}
+	} else if (mode == MODE_BRAKE) {
+		// TODO pregunta como actua el gas si hay una cuesta arriba y estamos en modo frenada, se puede quedar a 0 antes de llegar
+		/*if (gasState == 1) {
+			strcpy(request,"GAS: CLR\n");
+			gasState = 0;
+		}*/
+		if(speed >= 2.5 && gasState == 1){
+			strcpy(request,"GAS: CLR\n");
+			gasState = 0;
+		}else if(speed < 2.5 && gasState == 0){
+			strcpy(request,"GAS: SET\n");
+			gasState = 1;
+		}
 	}
 
 	if (SIMULATOR) {
@@ -242,15 +257,25 @@ int task_brake()
 	memset(answer,'\0',10);
 
 	// decelerate if the speed is more than 55m/s
-	if(speed <= SECURE_SPEED && brakeState == 1){
-		strcpy(request,"BRK: CLR\n");
-		brakeState = 0;
-	}else if(speed > SECURE_SPEED && brakeState == 0){
-		strcpy(request,"BRK: SET\n");
-		brakeState = 1;
-	}else{
-		// other cases do nothing
-		return 0;
+	if (mode == MODE_NORMAL) {
+		if(speed <= SECURE_SPEED && brakeState == 1){
+			strcpy(request,"BRK: CLR\n");
+			brakeState = 0;
+		}else if(speed > SECURE_SPEED && brakeState == 0){
+			strcpy(request,"BRK: SET\n");
+			brakeState = 1;
+		}else{
+			// other cases do nothing
+			return 0;
+		}
+	} else if (mode == MODE_BRAKE) {
+		if(speed <= SPEED_UNLOAD && brakeState == 1){
+			strcpy(request,"BRK: CLR\n");
+			brakeState = 0;
+		} else if (speed > SPEED_UNLOAD && brakeState == 0){
+			strcpy(request,"BRK: SET\n");
+			brakeState = 1;
+		}
 	}
 
 	if (SIMULATOR) {
@@ -435,6 +460,7 @@ int task_distance()
 		}
 	} else if (mode == MODE_BRAKE) {
 		if (distance <= DISTANCE_UNLOAD && speed <= SPEED_UNLOAD) {
+			// TODO preguntar cuando hay que poner la speed a 0
 			mode = MODE_UNLOADING;
 			displayStop(1);
 			return 1;
@@ -449,6 +475,9 @@ int task_distance()
  *********************************************************/
 int task_on_lights()
 {
+	if (lights == 1) {
+		return 0;
+	}
 	char request[10];
 	char answer[10];
 
