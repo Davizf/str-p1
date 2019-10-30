@@ -176,12 +176,10 @@ int display_real_distance_deposit(){
 
 
 // --------------------------------------
-// Function: check_speed_zero()
+// Function: set_speed_zero()
 // --------------------------------------
-int check_speed_zero(){
-  if(speed != 0){
-    speed = 0;
-  }
+int set_speed_zero(){
+  speed = 0;
   return 0;
 }
 
@@ -372,7 +370,7 @@ void loop() {
     }else if(unloadState == 1){  // Modo de acercamiento al deposito
         display_real_distance_deposit();
     }else{  // Modo de parada
-        check_speed_zero();
+        set_speed_zero();
         read_end_stop();
     }   
     
