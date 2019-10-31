@@ -51,6 +51,7 @@ int distance = 0;
 #define MIN_DISTANCE 11000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
+#define SECURE_SPEED_BRAKE 2.5
 
 int SECONDARY_CYCLES=6;
 struct timespec SC_DURATION={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
@@ -209,15 +210,10 @@ int task_gas()
 			return 0;
 		}
 	} else if (mode == MODE_BRAKE) {
-		// TODO pregunta como actua el gas si hay una cuesta arriba y estamos en modo frenada, se puede quedar a 0 antes de llegar
-		/*if (gasState == 1) {
+		if(speed >= SECURE_SPEED_BRAKE && gasState == 1){
 			strcpy(request,"GAS: CLR\n");
 			gasState = 0;
-		}*/
-		if(speed >= 2.5 && gasState == 1){
-			strcpy(request,"GAS: CLR\n");
-			gasState = 0;
-		}else if(speed < 2.5 && gasState == 0){
+		}else if(speed < SECURE_SPEED_BRAKE && gasState == 0){
 			strcpy(request,"GAS: SET\n");
 			gasState = 1;
 		}
@@ -269,10 +265,10 @@ int task_brake()
 			return 0;
 		}
 	} else if (mode == MODE_BRAKE) {
-		if(speed <= SPEED_UNLOAD && brakeState == 1){
+		if(speed <= SECURE_SPEED_BRAKE && brakeState == 1){
 			strcpy(request,"BRK: CLR\n");
 			brakeState = 0;
-		} else if (speed > SPEED_UNLOAD && brakeState == 0){
+		} else if (speed > SECURE_SPEED_BRAKE && brakeState == 0){
 			strcpy(request,"BRK: SET\n");
 			brakeState = 1;
 		}
@@ -459,8 +455,7 @@ int task_distance()
 			return 1;
 		}
 	} else if (mode == MODE_BRAKE) {
-		if (distance <= DISTANCE_UNLOAD && speed <= SPEED_UNLOAD) {
-			// TODO preguntar cuando hay que poner la speed a 0
+		if (distance == DISTANCE_UNLOAD && speed <= SPEED_UNLOAD) {
 			mode = MODE_UNLOADING;
 			displayStop(1);
 			return 1;
