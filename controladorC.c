@@ -53,9 +53,6 @@ int distance = 0;
 #define SPEED_UNLOAD 10
 #define SECURE_SPEED_BRAKE 2.5
 
-int SECONDARY_CYCLES=6;
-struct timespec SC_DURATION={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
-
 
 //---------------------------------------------------------------------------
 //                           FUNCIONES AUXILIARES
@@ -539,151 +536,204 @@ int task_finish_unload()
 	return -1;
 }
 
+void mode_normal() {
+	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
+	clock_gettime(CLOCK_REALTIME, &start);
+	
+	int actual_sc=0, secondary_cycles=6, change_mode = 0;
+	struct timespec sc_duration={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
+
+	while(1) {
+		switch (actual_sc) {
+		case 0:
+			task_slope();// A
+			task_speed();// B
+			change_mode = task_distance();// C
+			task_brightness();// G
+			task_lights();// H
+			break;
+		case 1:
+			task_gas();// D
+			task_brake();// E
+			task_mix();// F
+			task_brightness();// G
+			task_lights();// H
+			break;
+		case 2:
+			task_slope();// A
+			task_speed();// B
+			change_mode = task_distance();// C
+			task_brightness();// G
+			task_lights();// H
+			break;
+		case 3:
+			task_gas();// D
+			task_brake();// E
+			task_mix();// F
+			task_brightness();// G
+			task_lights();// H
+			break;
+		case 4:
+			task_slope();// A
+			task_speed();// B
+			change_mode = task_distance();// C
+			task_brightness();// G
+			task_lights();// H
+			break;
+		case 5:
+			task_gas();// D
+			task_brake();// E
+			task_brightness();// G
+			task_lights();// H
+			break;
+		}
+		
+		if (change_mode != 1) actual_sc=(actual_sc+1)%secondary_cycles;
+
+		clock_gettime(CLOCK_REALTIME, &finish);
+
+		// sleep = (start + SC_DURATION) - finish
+		addTime(start, sc_duration, &start);
+		diffTime(start, finish, &sleep);
+
+		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
+		
+		if (change_mode == 1) return;
+	}
+}
+
+void mode_brake() {
+	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
+	clock_gettime(CLOCK_REALTIME, &start);
+	
+	int actual_sc=0, secondary_cycles=6, change_mode = 0;
+	struct timespec sc_duration={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
+
+	while(1) {
+		switch (actual_sc) {
+		case 0:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_slope();// A
+			change_mode = task_distance();// C
+			break;
+		case 1:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_mix();// F
+			break;
+		case 2:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_slope();// A
+			change_mode = task_distance();// C
+			break;
+		case 3:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_mix();// F
+			break;
+		case 4:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_slope();// A
+			change_mode = task_distance();// C
+			break;
+		case 5:
+			task_speed();// B
+			task_gas();// D
+			task_brake();// E
+			task_on_lights();// G
+			break;
+		}
+		
+		if (change_mode != 1) actual_sc=(actual_sc+1)%secondary_cycles;
+
+		clock_gettime(CLOCK_REALTIME, &finish);
+
+		// sleep = (start + SC_DURATION) - finish
+		addTime(start, sc_duration, &start);
+		diffTime(start, finish, &sleep);
+
+		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
+		
+		if (change_mode == 1) return;
+	}
+}
+
+void mode_unload() {
+	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
+	clock_gettime(CLOCK_REALTIME, &start);
+	
+	int actual_sc=0, secondary_cycles=6, change_mode = 0;
+	struct timespec sc_duration={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
+
+	while(1) {
+		switch (actual_sc) {
+		case 0:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			break;
+		case 1:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			task_mix();// B
+			break;
+		case 2:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			break;
+		case 3:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			break;
+		case 4:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			task_mix();// B
+			break;
+		case 5:
+			change_mode = task_finish_unload();// A
+			task_on_lights();// C
+			break;
+		}
+		
+		if (change_mode != 1) actual_sc=(actual_sc+1)%secondary_cycles;
+
+		clock_gettime(CLOCK_REALTIME, &finish);
+
+		// sleep = (start + SC_DURATION) - finish
+		addTime(start, sc_duration, &start);
+		diffTime(start, finish, &sleep);
+
+		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
+		
+		if (change_mode == 1) return;
+	}
+}
+
 /**********************************************************
  *  Function: controller
  *********************************************************/
 void *controller(void *arg)
 {
-	int actual_sc=0;
-	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
-	clock_gettime(CLOCK_REALTIME, &start);
-
 	// init counting time for mix
 	clock_gettime(CLOCK_REALTIME, &mix_start);
 
-	int change_mode = 0;
 	// Endless loop
 	while(1) {
 		if (mode == MODE_NORMAL) {
-			switch (actual_sc) {
-			case 0:
-				task_slope();// A
-				task_speed();// B
-				change_mode = task_distance();// C
-				task_brightness();// G
-				task_lights();// H
-				break;
-			case 1:
-				task_gas();// D
-				task_brake();// E
-				task_mix();// F
-				task_brightness();// G
-				task_lights();// H
-				break;
-			case 2:
-				task_slope();// A
-				task_speed();// B
-				change_mode = task_distance();// C
-				task_brightness();// G
-				task_lights();// H
-				break;
-			case 3:
-				task_gas();// D
-				task_brake();// E
-				task_mix();// F
-				task_brightness();// G
-				task_lights();// H
-				break;
-			case 4:
-				task_slope();// A
-				task_speed();// B
-				change_mode = task_distance();// C
-				task_brightness();// G
-				task_lights();// H
-				break;
-			case 5:
-				task_gas();// D
-				task_brake();// E
-				task_brightness();// G
-				task_lights();// H
-				break;
-			}
+			mode_normal();
 		} else if (mode == MODE_BRAKE) {
-			switch (actual_sc) {
-			case 0:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_slope();// A
-				change_mode = task_distance();// C
-				break;
-			case 1:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_mix();// F
-				break;
-			case 2:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_slope();// A
-				change_mode = task_distance();// C
-				break;
-			case 3:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_mix();// F
-				break;
-			case 4:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_slope();// A
-				change_mode = task_distance();// C
-				break;
-			case 5:
-				task_speed();// B
-				task_gas();// D
-				task_brake();// E
-				task_on_lights();// G
-				break;
-			}
+			mode_brake();
 		} else if (mode == MODE_UNLOADING) {
-			switch (actual_sc) {
-			case 0:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				break;
-			case 1:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				task_mix();// B
-				break;
-			case 2:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				break;
-			case 3:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				break;
-			case 4:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				task_mix();// B
-				break;
-			case 5:
-				change_mode = task_finish_unload();// A
-				task_on_lights();// C
-				break;
-			}
+			mode_unload();
 		}
-		
-		if (change_mode == 1) {
-			actual_sc = 0;
-		} else {
-			actual_sc=(actual_sc+1)%SECONDARY_CYCLES;
-		}
-
-		clock_gettime(CLOCK_REALTIME, &finish);
-
-		// sleep = (start + SC_DURATION) - finish
-		addTime(start, SC_DURATION, &start);
-		diffTime(start, finish, &sleep);
-
-		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
 	}
 }
 
