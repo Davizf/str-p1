@@ -14,20 +14,23 @@ int gasState = 0; // 0 = off && 1 = on
 int brakeState = 0; // 0 = off && 1 = on
 int mixState = 0; // 0 = off && 1 = on
 int slope; // 0 = FLAT && 1 = UO && -1 = DOWN
-unsigned long previousMillis = 0;
 int lamState = 0; // 0 = off && 1 = on
-int lit = 0.0;
+int lit;
 long selectorDistance = 0; // 10000 - 90000
 long distanceDeposit;
 float actualDistanceToDeposit = 0.0;
 float diffDistance;
-int unloadState = 0; // 0 = off && 1 = frenando $$ 2 = parado
-int emergence = 0;
+int mode = 0; // 0 = normal && 1 = acercamiento $$ 2 = parado $$ 3 = emergencia
+
+unsigned long Tinit;
+unsigned long Tend;
+int secundaryCicle = 0;
 
 // --------------------------------------
 // Constant Variables
 // --------------------------------------
-const long interval = 200;
+#define TOTAL_SEC_CYCLES 2
+#define TIME_SEC_CYCLE 100
 
 
 // --------------------------------------
@@ -93,7 +96,6 @@ int represent_speed(){
   if(speed < minimumSecureSpeed || speed > maximumSecureSpeed){
     return -1;
   }
-
   analogWrite(10, map(speed, 40, 70, 0, 255));
 }
 
@@ -114,7 +116,7 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 250, 680, 0, 99);
+  lit = map(lit, 255, 680, 0, 99);
   return 0;
 }
 
@@ -122,7 +124,9 @@ int check_lit(){
 // Function: check_deposit_distance
 // --------------------------------------
 int check_deposit_distance(){
+  //Serial.println(analogRead(A1));
   selectorDistance = map(analogRead(A1), 500, 1023, 10000, 90000);
+  //Serial.println(selectorDistance);
   return 0;
 }
 
@@ -130,7 +134,7 @@ int check_deposit_distance(){
 // Function: display_distance_segment
 // --------------------------------------
 int display_distance_segment(){
-  PORTD = selectorDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída
+  PORTD = selectorDistance/10000 << 2;
   return 0;
 }
 
@@ -140,7 +144,7 @@ int display_distance_segment(){
 int validation_distance(){
   if(digitalRead(6) == HIGH){
     distanceDeposit = selectorDistance;
-    unloadState = 1;
+    mode = 1;
   }
   return 0;
 }
@@ -156,29 +160,22 @@ int display_real_distance_deposit(){
     if(brakeState == 1)  {  accel -= 0.5; }
     if(slope == 1)  {  accel -= 0.25; }
     if(slope == -1)  {  accel += 0.25; }
+
     actualDistanceToDeposit += (speed * t) + (0.5 * accel * pow(t, 2));
     diffDistance = distanceDeposit - actualDistanceToDeposit;
 
-    Serial.println(diffDistance);
-    PORTD = (long)diffDistance/10000 << 2;  //Rotaciona 2 vezes para esq. o contador e manda para os pinos de saída
+    //Serial.println(diffDistance);
+    PORTD = (long)diffDistance/10000 << 2;
     if(diffDistance <= 0){
        if(speed < 10){
-         unloadState = 2;  // to mode stop
+         speed = 0;
+         PORTD = 0 << 2;  
+         mode = 2;  // to mode stop
        }else{
-         unloadState = 0;  // to mode selector
+         mode = 0;  // to mode selector
      }
    }
 
-  return 0;
-}
-
-
-
-// --------------------------------------
-// Function: set_speed_zero()
-// --------------------------------------
-int set_speed_zero(){
-  speed = 0;
   return 0;
 }
 
@@ -187,7 +184,7 @@ int set_speed_zero(){
 // --------------------------------------
 int read_end_stop(){
   if(digitalRead(6) == HIGH){
-    unloadState = 0;
+    mode = 0;
   }
   return 0;
 }
@@ -196,12 +193,12 @@ int read_end_stop(){
 // Function: check_emergence()
 // --------------------------------------
 int check_emergence(){
-  if(emergence){
+  if(mode == 3){
     brakeState=1;
     gasState=0;
     lamState=1;
   }
-  Serial.println(speed);
+  //Serial.println(speed);
   return 0;
 }
 
@@ -245,7 +242,6 @@ int comm_server()
             speed_int = (int)speed;
             speed_dec = ((int)(speed*10)) % 10;
             sprintf(answer,"SPD:%02d.%d\n",speed_int,speed_dec);
-            Serial.print(answer);
         } else if (1 == sscanf(request,"GAS: %s\n",arg)) {
              if (0 == strcmp(arg,"SET")) {
                 // activar acelerador
@@ -321,28 +317,26 @@ int comm_server()
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp("LIT: REQ\n",request)) {
             sprintf(answer,"SPD: %d\n",lit);
-            Serial.print(answer);
 
         } else if (0 == strcmp(request,"DS:  REQ\n")) {
             // devolver distancia
             sprintf(answer,"DS:%ld\n", (long) diffDistance);
-            Serial.print(answer);
+        // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"STP: REQ\n")) {
-            if(unloadState == 2){
+            if(mode == 2){
               sprintf(answer,"STP:  GO\n");
             }else{
               sprintf(answer,"STP:STOP\n");
             }
-            Serial.print(answer);
+        // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"ERR: SET\n")) {
-            emergence = 1;
+            mode = 3;
             sprintf(answer,"ERR:  OK\n");
-            Serial.print(answer);
         } else {
             // error, send error message
             sprintf(answer,"MSG: ERR\n");
-            Serial.print(answer);
         }
+        Serial.print(answer);
     }
     return 0;
 }
@@ -360,40 +354,122 @@ void setup() {
     pinMode(8, INPUT);   // slope down
     pinMode(7, OUTPUT);   // lam
     pinMode(A0, INPUT);   // lit
-    DDRD = B00111100; // Configura os pinos digitais 2, 3, 4 e 5 como saída digital
-
+    DDRD = B00111100; // Configurar los pines digitais 2, 3, 4 e 5 como salidas digitales
+    Tinit = millis();
 }
 
 // --------------------------------------
 // Function: loop
 // --------------------------------------
 void loop() {
-  unsigned long currentMillis = millis();
-  comm_server();
-  if(!emergence){
-    check_accel();
-  }
-  check_brake();
-  check_mix();
-  check_slope();
-  represent_speed();
-  check_lam();
-  check_lit();
-  if(unloadState == 0){ // selector mode
-    check_deposit_distance();
-    display_distance_segment();
-    validation_distance();
-  }else if(unloadState == 1){  // Modo de acercamiento al deposito
-    display_real_distance_deposit();
-  }else{  // Modo de parada
-    set_speed_zero();
-    read_end_stop();
-  }
-  check_emergence();
+  
+    if(mode == 0){            // Modo de selector de distancia
+        switch(secundaryCicle){
+          case 0:
+            comm_server();
+            check_accel();
+            check_brake();
+            check_mix();
+            check_slope();
+            represent_speed();
+            check_lam();
+            check_lit();
+            check_deposit_distance();
+            display_distance_segment();
+            validation_distance();
+            break;
+          case 1:
+            check_accel();
+            check_brake();
+            check_mix();
+            check_slope();
+            represent_speed();
+            check_lam();
+            check_lit();
+            check_deposit_distance();
+            display_distance_segment();
+            validation_distance();
+            break;
+        }
+    }else if(mode == 1){      // Modo de acercamiento al deposito
+        switch(secundaryCicle){
+          case 0:
+            comm_server();
+            check_accel();
+            check_brake();
+            check_mix();
+            check_slope();
+            represent_speed();
+            check_lam();
+            check_lit();
+            display_real_distance_deposit();
+            break;
+          case 1:
+            check_accel();
+            check_brake();
+            check_mix();
+            check_slope();
+            represent_speed();
+            check_lam();
+            check_lit();
+            display_real_distance_deposit();
+            break;
+        }
+    }else if(mode == 2){                       // Modo de parada
+        switch(secundaryCicle){
+        case 0:
+          comm_server();
+          check_accel();
+          check_brake();
+          check_mix();
+          check_slope();
+          represent_speed();
+          check_lam();
+          check_lit();
+          read_end_stop();
+          break;
+        case 1:
+          check_accel();
+          check_brake();
+          check_mix();
+          check_slope();
+          represent_speed();
+          check_lam();
+          check_lit();
+          read_end_stop();
+          break;
+      }
+    }else if(mode == 3){
+      switch(secundaryCicle){
+        case 0:
+          comm_server();
+          check_accel();
+          check_brake();
+          check_mix();
+          check_slope();
+          represent_speed();
+          check_lam();
+          break;
+        case 1:
+          check_accel();
+          check_brake();
+          check_mix();
+          check_slope();
+          represent_speed();
+          check_lam();
+          break;
+      }
+    }
+    
 
-  if (currentMillis - previousMillis < interval) {
-     delay(interval - (currentMillis - previousMillis));
+  secundaryCicle = (secundaryCicle + 1) % TOTAL_SEC_CYCLES;
+  Tend = millis();
+
+  if(TIME_SEC_CYCLE - (Tend - Tinit) < 0){
+    // Temporal Error
+    return -1;
   }
-  previousMillis = currentMillis;
+  delay(TIME_SEC_CYCLE - (Tend - Tinit));
+  Tinit = Tinit + TIME_SEC_CYCLE;
 
 }

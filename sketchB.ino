@@ -13,15 +13,19 @@ int maximumSecureSpeed = 70;
 int gasState = 0; // 0 = off && 1 = on
 int brakeState = 0; // 0 = off && 1 = on
 int mixState = 0; // 0 = off && 1 = on
-int slope; // 0 = FLAT && 1 = UO && -1 = DOWN
-unsigned long previousMillis = 0;
+int slope; // 0 = FLAT && 1 = UP && -1 = DOWN
 int lamState = 0; // 0 = off && 1 = on
-int lit = 0.0;
+int lit = 0;
+
+unsigned long Tinit;
+unsigned long Tend;
+int secundaryCicle = 0;
 
 // --------------------------------------
 // Constant Variables
 // --------------------------------------
-const long interval = 200; 
+#define TOTAL_SEC_CYCLES 2
+#define TIME_SEC_CYCLE 100
 
 
 // --------------------------------------
@@ -152,7 +156,6 @@ int comm_server()
             speed_int = (int)speed;
             speed_dec = ((int)(speed*10)) % 10;
             sprintf(answer,"SPD:%02d.%d\n",speed_int,speed_dec);
-            Serial.print(answer);
         } else if (1 == sscanf(request,"GAS: %s\n",arg)) {
              if (0 == strcmp(arg,"SET")) {
                 // activar acelerador
@@ -233,8 +236,8 @@ int comm_server()
         } else {
             // error, send error message
             sprintf(answer,"MSG: ERR\n");
-            Serial.print(answer);
         }
+        Serial.print(answer);
     }
     return 0;
 }    
@@ -252,6 +255,7 @@ void setup() {
     pinMode(8, INPUT);   // slope down
     pinMode(7, OUTPUT);   // lam
     pinMode(A0, INPUT);   // lit
+    Tinit = millis();
     
 }
 
@@ -259,17 +263,35 @@ void setup() {
 // Function: loop
 // --------------------------------------
 void loop() {
-    unsigned long currentMillis = millis();
-    comm_server();
-    check_accel();
-    check_brake();
-    check_mix();
-    check_slope();
-    represent_speed();
-    check_lam();
-    check_lit();
-    if (currentMillis - previousMillis < interval) {
-        delay(interval - (currentMillis - previousMillis));
-    }
-    previousMillis = currentMillis;
+    switch(secundaryCicle){
+    case 0:
+      comm_server();
+      check_accel();
+      check_brake();
+      check_mix();
+      check_slope();
+      represent_speed();
+      check_lam();
+      check_lit();
+      break;
+    case 1:
+      check_accel();
+      check_brake();
+      check_mix();
+      check_slope();
+      represent_speed();
+      check_lam();
+      check_lit();
+      break;
+  }
+
+  secundaryCicle = (secundaryCicle + 1) % TOTAL_SEC_CYCLES;
+  Tend = millis();
+
+  if(TIME_SEC_CYCLE - (Tend - Tinit) < 0){
+    // Temporal Error
+    return -1;
+  }
+  delay(TIME_SEC_CYCLE - (Tend - Tinit));
+  Tinit = Tinit + TIME_SEC_CYCLE;
 }
