@@ -48,14 +48,12 @@ struct timespec mix_start, mix_end, mix_aux;
 #define MODE_UNLOADING 2
 #define MODE_EMERGENCE 3
 int mode = MODE_NORMAL;
+int emergence_switch_ok = 0;
 int distance = 0;
 #define MIN_DISTANCE 11000
 #define DISTANCE_UNLOAD 0
 #define SPEED_UNLOAD 10
 #define SECURE_SPEED_BRAKE 2.5
-
-int SECONDARY_CYCLES=6;
-struct timespec SC_DURATION={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
 
 
 //---------------------------------------------------------------------------
@@ -136,8 +134,9 @@ int task_speed()
 	// display speed
 	if (1 == sscanf (answer,"SPD:%f\n",&speed)) {
 		displaySpeed(speed);
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 /**********************************************************
@@ -176,6 +175,8 @@ int task_slope()
 	} else if (0 == strcmp(answer,"SLP:  UP\n")) {
 		slope = 1;
 		displaySlope(1);
+	} else {
+		return -1;
 	}
 
 	return 0;
@@ -189,6 +190,7 @@ int task_gas()
 {
 	char request[10];
 	char answer[10];
+	int previous_gas = gasState;
 
 	//----------------------------------------------------------
 	//  check the actual speed and decide whether to accelerate
@@ -234,6 +236,7 @@ int task_gas()
 	}
 
 	// error case
+	gasState = previous_gas;
 	return -1;
 }
 
@@ -244,6 +247,7 @@ int task_brake()
 {
 	char request[10];
 	char answer[10];
+	int previous_brake = brakeState;
 
 	//----------------------------------------------------------
 	//  check the actual speed and decide whether to decelerate
@@ -289,6 +293,7 @@ int task_brake()
 	}
 
 	// error case
+	brakeState = previous_brake;
 	return -1;
 }
 
@@ -300,6 +305,7 @@ int task_mix()
 	double diff_t;
 	char request[10];
 	char answer[10];
+	int previous_mix = mixState;
 
 	//-------------------------------------------------
 	//  checking time count and decide to activate mix
@@ -317,12 +323,11 @@ int task_mix()
 	memset(answer,'\0',10);
 
 	if(mixState == 0){
-		mixState = 1;
-		// request speed
 		strcpy(request,"MIX: SET\n");
+		mixState = 1;
 	}else{
-		mixState = 0;
 		strcpy(request,"MIX: CLR\n");
+		mixState = 0;
 	}
 
 	if (SIMULATOR) {
@@ -341,6 +346,7 @@ int task_mix()
 	}
 
 	// error case
+	mixState = previous_mix;
 	return -1;
 }
 
@@ -372,9 +378,11 @@ int task_brightness()
 
 	// display brightness
 	if (1 == sscanf (answer,"LIT: %d%%\n",&brightness)) {
+		if (brightness>99 || brightness<0) printf("------------------------Brillo mal: %d\n\n", brightness);
 		displayLightSensor(brightness);
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 /**********************************************************
@@ -384,6 +392,7 @@ int task_lights()
 {
 	char request[10];
 	char answer[10];
+	int previous_lights = lights;
 
 	//clear request and answer
 	memset(request,'\0',10);
@@ -415,6 +424,7 @@ int task_lights()
 	}
 
 	// error case
+	lights = previous_lights;
 	return -1;
 }
 
@@ -540,6 +550,17 @@ int task_finish_unload()
 	return -1;
 }
 
+int go_to_emergence(struct timespec start, struct timespec finish) {
+	if (finish.tv_sec > start.tv_sec ||
+			finish.tv_sec == start.tv_sec && finish.tv_nsec > start.tv_nsec) {
+		printf("\n\n\n\n--------------------------------------Modo emergencia activado\n\n");
+		printf("--------------------------------------Modo emergencia activado\n\n\n\n");
+		mode = MODE_EMERGENCE;
+		return 1;
+	}
+	return 0;
+}
+
 void mode_normal() {
 	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
 	clock_gettime(CLOCK_REALTIME, &start);
@@ -598,6 +619,7 @@ void mode_normal() {
 
 		// sleep = (start + SC_DURATION) - finish
 		addTime(start, sc_duration, &start);
+		if (go_to_emergence(start, finish)) return;
 		diffTime(start, finish, &sleep);
 
 		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
@@ -662,6 +684,7 @@ void mode_brake() {
 
 		// sleep = (start + SC_DURATION) - finish
 		addTime(start, sc_duration, &start);
+		if (go_to_emergence(start, finish)) return;
 		diffTime(start, finish, &sleep);
 
 		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
@@ -674,7 +697,7 @@ void mode_unload() {
 	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
 	clock_gettime(CLOCK_REALTIME, &start);
 	
-	int actual_sc=0, secondary_cycles=6, change_mode = 0;
+	int actual_sc=0, secondary_cycles=3, change_mode = 0;
 	struct timespec sc_duration={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
 
 	while(1) {
@@ -692,19 +715,6 @@ void mode_unload() {
 			change_mode = task_finish_unload();// A
 			task_on_lights();// C
 			break;
-		case 3:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			break;
-		case 4:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			task_mix();// B
-			break;
-		case 5:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			break;
 		}
 		
 		if (change_mode != 1) actual_sc=(actual_sc+1)%secondary_cycles;
@@ -713,6 +723,7 @@ void mode_unload() {
 
 		// sleep = (start + SC_DURATION) - finish
 		addTime(start, sc_duration, &start);
+		if (go_to_emergence(start, finish)) return;
 		diffTime(start, finish, &sleep);
 
 		clock_nanosleep(CLOCK_REALTIME, 0, &sleep, NULL);
@@ -724,22 +735,105 @@ void mode_unload() {
 /**********************************************************
  *  Function: task_off_gas
  *********************************************************/
-int task_off_gas() {//TODO
-	return 0;
+int task_off_gas() {
+	char request[10];
+	char answer[10];
+	int previous_gas = gasState;
+
+	//clear request and answer
+	memset(request,'\0',10);
+	memset(answer,'\0',10);
+
+	if(gasState == 1){
+		strcpy(request,"GAS: CLR\n");
+		gasState = 0;
+	} else {
+		// other cases do nothing
+		return 0;
+	}
+
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
+
+	// display speed
+	if (0 == strcmp(answer,"GAS:  OK\n")) {
+		displayGas(gasState);
+		return 0;
+	}
+
+	// error case
+	gasState = previous_gas;
+	return -1;
 }
 
 /**********************************************************
  *  Function: task_on_brake
  *********************************************************/
-int task_on_brake() {//TODO
-	return 0;
+int task_on_brake() {
+	char request[10];
+	char answer[10];
+	int previous_brake = brakeState;
+
+	//clear request and answer
+	memset(request,'\0',10);
+	memset(answer,'\0',10);
+
+	// brake
+	if (brakeState == 0) {
+		strcpy(request,"BRK: SET\n");
+		brakeState = 1;
+	}
+
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
+
+	// display brake
+	if (0 == strcmp(answer,"BRK:  OK\n")) {
+		displayBrake(brakeState);
+		return 0;
+	}
+
+	// error case
+	brakeState = previous_brake;
+	return -1;
 }
 
 /**********************************************************
  *  Function: task_emergence_mode
  *********************************************************/
-int task_emergence_mode() {//TODO
-	return 0;
+int task_emergence_mode() {
+	char request[10];
+	char answer[10];
+
+	//clear request and answer
+	memset(request,'\0',10);
+	memset(answer,'\0',10);
+
+	// Send emergence
+	strcpy(request,"ERR: SET\n");
+
+	if (SIMULATOR) {
+		simulator(request, answer);
+	} else {
+		writeSerialMod_9(request);
+		readSerialMod_9(answer);
+	}
+
+	if (0 == strcmp(answer,"ERR:  OK\n")) {
+		emergence_switch_ok = 1;
+		return 0;
+	}
+
+	// error case
+	return -1;
 }
 
 int mode_emergence() {
@@ -750,6 +844,7 @@ int mode_emergence() {
 	struct timespec sc_duration={.tv_sec=10, .tv_nsec=0};// Max duration of an CS
 
 	while(1) {
+		printf("----------------Estoy en emergencia\n");
 		switch (actual_sc) {
 		case 0:
 			task_slope();// A
@@ -757,7 +852,7 @@ int mode_emergence() {
 			task_off_gas();// C
 			task_on_brake();// D
 			task_on_lights();// F
-			task_emergence_mode();// G
+			if (emergence_switch_ok == 0) task_emergence_mode();// G
 			task_mix();// E
 			break;
 		case 1:
@@ -766,7 +861,7 @@ int mode_emergence() {
 			task_off_gas();// C
 			task_on_brake();// D
 			task_on_lights();// F
-			task_emergence_mode();// G
+			if (emergence_switch_ok == 0) task_emergence_mode();// G
 			break;
 		case 2:
 			task_slope();// A
@@ -774,11 +869,10 @@ int mode_emergence() {
 			task_off_gas();// C
 			task_on_brake();// D
 			task_on_lights();// F
-			task_emergence_mode();// G
+			if (emergence_switch_ok == 0) task_emergence_mode();// G
 			task_mix();// E
 			break;
 		}
-		// TODO detectar fin
 		actual_sc=(actual_sc+1)%secondary_cycles;
 
 		clock_gettime(CLOCK_REALTIME, &finish);
