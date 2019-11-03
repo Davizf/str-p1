@@ -53,7 +53,6 @@ int distance = 0;
 #define SPEED_UNLOAD 10
 #define SECURE_SPEED_BRAKE 2.5
 
-
 //---------------------------------------------------------------------------
 //                           FUNCIONES AUXILIARES
 //---------------------------------------------------------------------------
@@ -681,7 +680,7 @@ void mode_unload() {
 	struct timespec start, finish, sleep;// Cuando empieza y acaba el CS
 	clock_gettime(CLOCK_REALTIME, &start);
 	
-	int actual_sc=0, secondary_cycles=6, change_mode = 0;
+	int actual_sc=0, secondary_cycles=3, change_mode = 0;
 	struct timespec sc_duration={.tv_sec=5, .tv_nsec=0};// Max duration of an CS
 
 	while(1) {
@@ -696,19 +695,6 @@ void mode_unload() {
 			task_mix();// B
 			break;
 		case 2:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			break;
-		case 3:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			break;
-		case 4:
-			change_mode = task_finish_unload();// A
-			task_on_lights();// C
-			task_mix();// B
-			break;
-		case 5:
 			change_mode = task_finish_unload();// A
 			task_on_lights();// C
 			break;
