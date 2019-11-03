@@ -378,7 +378,6 @@ int task_brightness()
 
 	// display brightness
 	if (1 == sscanf (answer,"LIT: %d%%\n",&brightness)) {
-		if (brightness>99 || brightness<0) printf("------------------------Brillo mal: %d\n\n", brightness);
 		displayLightSensor(brightness);
 		return 0;
 	}
@@ -553,8 +552,6 @@ int task_finish_unload()
 int go_to_emergence(struct timespec start, struct timespec finish) {
 	if (finish.tv_sec > start.tv_sec ||
 			finish.tv_sec == start.tv_sec && finish.tv_nsec > start.tv_nsec) {
-		printf("\n\n\n\n--------------------------------------Modo emergencia activado\n\n");
-		printf("--------------------------------------Modo emergencia activado\n\n\n\n");
 		mode = MODE_EMERGENCE;
 		return 1;
 	}
@@ -844,7 +841,6 @@ int mode_emergence() {
 	struct timespec sc_duration={.tv_sec=10, .tv_nsec=0};// Max duration of an CS
 
 	while(1) {
-		printf("----------------Estoy en emergencia\n");
 		switch (actual_sc) {
 		case 0:
 			task_slope();// A
