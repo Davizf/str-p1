@@ -122,8 +122,9 @@ int task_speed()
 	// display speed
 	if (1 == sscanf (answer,"SPD:%f\n",&speed)) {
 		displaySpeed(speed);
+		return 0;
 	}
-	return 0;
+	return -1;
 }
 
 /**********************************************************
@@ -162,6 +163,8 @@ int task_slope()
 	} else if (0 == strcmp(answer,"SLP:  UP\n")) {
 		slope = 1;
 		displaySlope(1);
+	} else {
+		return -1;
 	}
 
 	return 0;
@@ -175,6 +178,7 @@ int task_gas()
 {
 	char request[10];
 	char answer[10];
+	int previous_gas = gasState;
 
 	//----------------------------------------------------------
 	//  check the actual speed and decide whether to accelerate
@@ -210,6 +214,7 @@ int task_gas()
 	}
 
 	// error case
+	gasState = previous_gas;
 	return -1;
 }
 
@@ -220,6 +225,7 @@ int task_brake()
 {
 	char request[10];
 	char answer[10];
+	int previous_brake = brakeState;
 
 	//----------------------------------------------------------
 	//  check the actual speed and decide whether to decelerate
@@ -255,6 +261,7 @@ int task_brake()
 	}
 
 	// error case
+	brakeState = previous_brake;
 	return -1;
 }
 
@@ -266,6 +273,7 @@ int task_mix()
 	double diff_t;
 	char request[10];
 	char answer[10];
+	int previous_mix = mixState;
 
 	//-------------------------------------------------
 	//  checking time count and decide to activate mix
@@ -283,12 +291,11 @@ int task_mix()
 	memset(answer,'\0',10);
 
 	if(mixState == 0){
-		mixState = 1;
-		// request speed
 		strcpy(request,"MIX: SET\n");
+		mixState = 1;
 	}else{
-		mixState = 0;
 		strcpy(request,"MIX: CLR\n");
+		mixState = 0;
 	}
 
 	if (SIMULATOR) {
@@ -307,6 +314,7 @@ int task_mix()
 	}
 
 	// error case
+	mixState = previous_mix;
 	return -1;
 }
 
