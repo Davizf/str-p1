@@ -112,7 +112,7 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 255, 680, 0, 99);
+  lit = map(lit, 124, 537, 0, 99);
   return 0;
 }
 
@@ -216,13 +216,13 @@ int comm_server()
         // si no coincide con ninguno, error
         } else if (1 == sscanf(request,"LAM: %s\n",arg)) {
               if (0 == strcmp(arg,"SET")) {
-                // activar mixer
+                // activar lam
                 lamState=1;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else if (0 == strcmp(arg,"CLR")) {
-                // desactivar mixer
+                // desactivar lam
                 lamState=0;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else {
                 // error
                 strcpy (answer,"MSG: ERR\n");
@@ -231,7 +231,6 @@ int comm_server()
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp("LIT: REQ\n",request)) {
             sprintf(answer,"SPD: %d\n",lit);
-            Serial.print(answer);
             
         } else {
             // error, send error message

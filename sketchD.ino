@@ -102,7 +102,7 @@ int represent_speed(){
 // --------------------------------------
 // Function: check_lam
 // --------------------------------------
-int check_lam(){
+int check_lam(){ 
   if(lamState == 1){
     digitalWrite(7,HIGH);
   }else{
@@ -116,7 +116,7 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 255, 680, 0, 99);
+  lit = map(lit, 124, 537, 0, 99);
   return 0;
 }
 
@@ -125,7 +125,7 @@ int check_lit(){
 // --------------------------------------
 int check_deposit_distance(){
   //Serial.println(analogRead(A1));
-  selectorDistance = map(analogRead(A1), 500, 1023, 10000, 90000);
+  selectorDistance = map(analogRead(A1), 500, 1020, 10000, 90000);
   //Serial.println(selectorDistance);
   return 0;
 }
@@ -297,18 +297,16 @@ int comm_server()
                 sprintf (answer,"SLP:  UP\n");
                 break;
             }
-            Serial.print(slope);
-            Serial.print("\n");
         // si no coincide con ninguno, error
         } else if (1 == sscanf(request,"LAM: %s\n",arg)) {
               if (0 == strcmp(arg,"SET")) {
-                // activar mixer
+                // activar lam
                 lamState=1;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else if (0 == strcmp(arg,"CLR")) {
-                // desactivar mixer
+                // desactivar lam
                 lamState=0;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else {
                 // error
                 strcpy (answer,"MSG: ERR\n");
@@ -324,9 +322,9 @@ int comm_server()
         // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"STP: REQ\n")) {
             if(mode == 2){
-              sprintf(answer,"STP:  GO\n");
-            }else{
               sprintf(answer,"STP:STOP\n");
+            }else{
+              sprintf(answer,"STP:  GO\n");
             }
         // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"ERR: SET\n")) {
@@ -439,7 +437,7 @@ void loop() {
           read_end_stop();
           break;
       }
-    }else if(mode == 3){
+    }else if(mode == 3){                   // Emergence
       switch(secundaryCicle){
         case 0:
           comm_server();

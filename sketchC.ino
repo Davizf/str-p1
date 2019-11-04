@@ -289,13 +289,13 @@ int comm_server()
         // si no coincide con ninguno, error
         } else if (1 == sscanf(request,"LAM: %s\n",arg)) {
               if (0 == strcmp(arg,"SET")) {
-                // activar mixer
+                // activar lam
                 lamState=1;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else if (0 == strcmp(arg,"CLR")) {
-                // desactivar mixer
+                // desactivar lam
                 lamState=0;
-                strcpy (answer,"MIX:  OK\n");
+                strcpy (answer,"LAM:  OK\n");
               } else {
                 // error
                 strcpy (answer,"MSG: ERR\n");
@@ -311,9 +311,9 @@ int comm_server()
         // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"STP: REQ\n")) {
             if(mode == 2){
-              sprintf(answer,"STP:  GO\n");
-            }else{
               sprintf(answer,"STP:STOP\n");
+            }else{
+              sprintf(answer,"STP:  GO\n");
             }
         // si no coincide con ninguno, error
         } else {
