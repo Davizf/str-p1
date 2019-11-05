@@ -14,7 +14,7 @@
 /**********************************************************
  *  Constants
  **********************************************************/
-#define SIMULATOR 1// 1 use simulator, 0 use serial
+#define SIMULATOR 0// 1 use simulator, 0 use serial
 #define SECURE_SPEED 55
 #define BRIGHTNESS_ON 50
 
@@ -454,20 +454,23 @@ int task_distance()
 	// display distance
 	if (1 == sscanf (answer,"DS:%d\n",&distance)) {
 		displayDistance(distance);
+		
+		if (mode == MODE_NORMAL) {
+				if (distance <= MIN_DISTANCE) {
+					mode = MODE_BRAKE;
+					return 1;
+				}
+		} else if (mode == MODE_BRAKE) {
+			if (distance == DISTANCE_UNLOAD && speed <= SPEED_UNLOAD) {
+				mode = MODE_UNLOADING;
+				displayStop(1);
+				return 1;
+			}
+		}
+		
 	}
 	
-	if (mode == MODE_NORMAL) {
-		if (distance <= MIN_DISTANCE) {
-			mode = MODE_BRAKE;
-			return 1;
-		}
-	} else if (mode == MODE_BRAKE) {
-		if (distance == DISTANCE_UNLOAD && speed <= SPEED_UNLOAD) {
-			mode = MODE_UNLOADING;
-			displayStop(1);
-			return 1;
-		}
-	}
+	
 	return 0;
 }
 
