@@ -112,7 +112,14 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 124, 537, 0, 99);
+  lit = map(lit, 250, 680, 0, 99);
+  if(lit > 99){
+    lit = 99;
+  }
+  if(lit < 0){
+    lit = 0;
+  }
+  //Serial.println(lit);
   return 0;
 }
 
@@ -211,8 +218,6 @@ int comm_server()
                 sprintf (answer,"SLP:  UP\n"); 
                 break;
             }
-            Serial.print(slope);
-            Serial.print("\n");
         // si no coincide con ninguno, error
         } else if (1 == sscanf(request,"LAM: %s\n",arg)) {
               if (0 == strcmp(arg,"SET")) {
@@ -230,7 +235,11 @@ int comm_server()
           
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp("LIT: REQ\n",request)) {
-            sprintf(answer,"SPD: %d\n",lit);
+              if(lit < 10){
+                sprintf(answer,"LIT: 0%d%%\n",lit);
+              }else{
+                sprintf(answer,"LIT: %d%%\n",lit);
+              }
             
         } else {
             // error, send error message
@@ -289,7 +298,7 @@ void loop() {
 
   if(TIME_SEC_CYCLE - (Tend - Tinit) < 0){
     // Temporal Error
-    return -1;
+    return ;
   }
   delay(TIME_SEC_CYCLE - (Tend - Tinit));
   Tinit = Tinit + TIME_SEC_CYCLE;
