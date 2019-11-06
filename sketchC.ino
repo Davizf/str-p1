@@ -16,10 +16,8 @@ int mixState = 0; // 0 = off && 1 = on
 int slope; // 0 = FLAT && 1 = UO && -1 = DOWN
 int lamState = 0; // 0 = off && 1 = on
 int lit;
-long selectorDistance = 0; // 10000 - 90000
-long distanceDeposit;
-float actualDistanceToDeposit = 0.0;
-float diffDistance;
+long selectorDistance ; // 10000 - 90000
+long distanceToDeposit ;
 int mode = 0; // 0 = normal && 1 = acercamiento $$ 2 = parado
 
 unsigned long Tinit;
@@ -96,6 +94,9 @@ int represent_speed(){
   if(speed < minimumSecureSpeed || speed > maximumSecureSpeed){
     return -1;
   }
+  if(speed < 0){
+    speed = 0;
+  }
   analogWrite(10, map(speed, 40, 70, 0, 255));
 }
 
@@ -116,7 +117,14 @@ int check_lam(){
 // --------------------------------------
 int check_lit(){
   lit = analogRead(A0);
-  lit = map(lit, 255, 680, 0, 99);
+  lit = map(lit, 250, 680, 0, 99);
+  if(lit > 99){
+    lit = 99;
+  }
+  if(lit < 0){
+    lit = 0;
+  }
+  //Serial.println(lit);
   return 0;
 }
 
@@ -124,9 +132,7 @@ int check_lit(){
 // Function: check_deposit_distance
 // --------------------------------------
 int check_deposit_distance(){
-  //Serial.println(analogRead(A1));
   selectorDistance = map(analogRead(A1), 500, 1023, 10000, 90000);
-  //Serial.println(selectorDistance);
   return 0;
 }
 
@@ -143,7 +149,7 @@ int display_distance_segment(){
 // --------------------------------------
 int validation_distance(){
   if(digitalRead(6) == HIGH){
-    distanceDeposit = selectorDistance;
+    distanceToDeposit = selectorDistance;
     mode = 1;
   }
   return 0;
@@ -161,15 +167,17 @@ int display_real_distance_deposit(){
     if(slope == 1)  {  accel -= 0.25; }
     if(slope == -1)  {  accel += 0.25; }
 
-    actualDistanceToDeposit += (speed * t) + (0.5 * accel * pow(t, 2));
-    diffDistance = distanceDeposit - actualDistanceToDeposit;
+    distanceToDeposit = distanceToDeposit - ( (speed * t) + (0.5 * accel * pow(t, 2)) );
+    if(distanceToDeposit < 0){
+      distanceToDeposit = 0;
+    }
 
-    //Serial.println(diffDistance);
-    PORTD = (long)diffDistance/10000 << 2;
-    if(diffDistance <= 0){
+    PORTD = (long)distanceToDeposit/10000 << 2;
+    
+    if(distanceToDeposit == 0){
        if(speed < 10){
          speed = 0;
-         PORTD = 0 << 2;  
+         PORTD = 0 << 2;
          mode = 2;  // to mode stop
        }else{
          mode = 0;  // to mode selector
@@ -183,6 +191,7 @@ int display_real_distance_deposit(){
 // Function: read_end_stop()
 // --------------------------------------
 int read_end_stop(){
+  speed = 0;
   if(digitalRead(6) == HIGH){
     mode = 0;
   }
@@ -284,8 +293,6 @@ int comm_server()
                 sprintf (answer,"SLP:  UP\n");
                 break;
             }
-            Serial.print(slope);
-            Serial.print("\n");
         // si no coincide con ninguno, error
         } else if (1 == sscanf(request,"LAM: %s\n",arg)) {
               if (0 == strcmp(arg,"SET")) {
@@ -303,11 +310,22 @@ int comm_server()
 
             // peticiones de informacin, devolver algo
         } else if (0 == strcmp("LIT: REQ\n",request)) {
-            sprintf(answer,"SPD: %d\n",lit);
+            if(lit < 10){
+                sprintf(answer,"LIT: 0%d%%\n",lit);
+            }else{
+                sprintf(answer,"LIT: %d%%\n",lit);
+            }
 
         } else if (0 == strcmp(request,"DS:  REQ\n")) {
             // devolver distancia
-            sprintf(answer,"DS:%ld\n", (long) diffDistance);
+            if (mode == 1) {
+              sprintf(answer,"DS:%05ld\n", distanceToDeposit);
+            } else if(mode == 2){
+                sprintf(answer, "DS:00000\n");
+            } else {
+              sprintf(answer, "DS:99999\n");
+            }
+            
         // si no coincide con ninguno, error
         } else if (0 == strcmp(request,"STP: REQ\n")) {
             if(mode == 2){
@@ -346,9 +364,9 @@ void setup() {
 // Function: loop
 // --------------------------------------
 void loop() {
-  
+
     if(mode == 0){            // Modo de selector de distancia
-      
+
         switch(secundaryCicle){
           case 0:
             comm_server();
@@ -376,7 +394,7 @@ void loop() {
             validation_distance();
             break;
       }
-        
+
     }else if(mode == 1){      // Modo de acercamiento al deposito
         switch(secundaryCicle){
           case 0:
@@ -432,7 +450,7 @@ void loop() {
 
   if(TIME_SEC_CYCLE - (Tend - Tinit) < 0){
     // Temporal Error
-    return -1;
+    return ;
   }
   delay(TIME_SEC_CYCLE - (Tend - Tinit));
   Tinit = Tinit + TIME_SEC_CYCLE;
