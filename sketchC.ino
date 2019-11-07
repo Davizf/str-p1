@@ -22,6 +22,7 @@ int mode = 0; // 0 = normal && 1 = acercamiento $$ 2 = parado
 
 unsigned long Tinit;
 unsigned long Tend;
+unsigned long Toffset;
 int secundaryCicle = 0;
 
 // --------------------------------------
@@ -448,11 +449,17 @@ void loop() {
   secundaryCicle = (secundaryCicle + 1) % TOTAL_SEC_CYCLES;
   Tend = millis();
 
-  if(TIME_SEC_CYCLE - (Tend - Tinit) < 0){
+  if(Tend > Tinit){
+    Toffset = Tend - Tinit;
+  }else{
+    Toffset = (pow(2,32)-1) - Tinit + Tend;
+  }
+  
+  if(TIME_SEC_CYCLE - Toffset < 0){
     // Temporal Error
     return ;
   }
-  delay(TIME_SEC_CYCLE - (Tend - Tinit));
+  delay(TIME_SEC_CYCLE - Toffset);
   Tinit = Tinit + TIME_SEC_CYCLE;
 
 }
